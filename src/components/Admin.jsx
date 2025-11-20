@@ -24,8 +24,15 @@ export default function Admin(){
   const [folders, setFolders] = useState([])
   const [catForFolders, setCatForFolders] = useState('')
 
+  // Settings (hero background)
+  const [settings, setSettings] = useState({})
+  const [heroFile, setHeroFile] = useState(null)
+  const [heroUrlInput, setHeroUrlInput] = useState('')
+  const [heroStatus, setHeroStatus] = useState(null)
+
   useEffect(()=>{
     fetch(`${API}/categories`).then(r=>r.json()).then(setCategories).catch(()=>{})
+    fetch(`${API}/settings`).then(r=>r.json()).then((s)=>{ setSettings(s||{}); setHeroUrlInput(s?.hero_url||'') }).catch(()=>{})
   },[])
 
   useEffect(()=>{
@@ -107,6 +114,40 @@ export default function Admin(){
       setUploadMeta({ alt:'', category_slug: uploadMeta.category_slug, folder_id: uploadMeta.folder_id || '' })
     } catch(err){
       setUploadStatus('error')
+    }
+  }
+
+  const setHeroFromFile = async (e) => {
+    e.preventDefault()
+    if(!heroFile){ setHeroStatus('Choose a file'); return }
+    setHeroStatus('uploading')
+    try{
+      const fd = new FormData()
+      fd.append('file', heroFile)
+      const upRes = await fetch(`${API}/upload`, { method:'POST', body: fd })
+      const upData = await upRes.json()
+      if(!upRes.ok){ setHeroStatus(upData.detail || 'Upload failed'); return }
+      const res = await fetch(`${API}/settings`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ hero_url: upData.url }) })
+      const data = await res.json()
+      setSettings(data || {})
+      setHeroUrlInput(data?.hero_url || '')
+      setHeroStatus('saved')
+    } catch(err){
+      setHeroStatus('error')
+    }
+  }
+
+  const saveHeroFromUrl = async (e) => {
+    e.preventDefault()
+    if(!heroUrlInput){ setHeroStatus('Enter a URL'); return }
+    setHeroStatus('saving')
+    try{
+      const res = await fetch(`${API}/settings`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ hero_url: heroUrlInput }) })
+      const data = await res.json()
+      setSettings(data || {})
+      setHeroStatus('saved')
+    } catch(err){
+      setHeroStatus('error')
     }
   }
 
@@ -200,6 +241,31 @@ export default function Admin(){
               </div>
             )}
           </form>
+        </section>
+
+        {/* Site settings: custom homepage hero */}
+        <section className="bg-white/5 border border-white/10 rounded-xl p-6 md:col-span-2">
+          <h2 className="text-xl font-medium mb-4">Site Settings</h2>
+          <div className="grid md:grid-cols-3 gap-4 items-start">
+            <div className="md:col-span-2 space-y-3">
+              <form onSubmit={saveHeroFromUrl} className="flex gap-3">
+                <input placeholder="Hero image URL" className="flex-1 bg-transparent border border-white/10 rounded-lg px-4 py-2" value={heroUrlInput} onChange={e=>setHeroUrlInput(e.target.value)} />
+                <button className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white">Save URL</button>
+              </form>
+              <form onSubmit={setHeroFromFile} className="flex items-center gap-3">
+                <input type="file" accept="image/*" onChange={e=>setHeroFile(e.target.files?.[0]||null)} className="flex-1 bg-transparent border border-white/10 rounded-lg px-4 py-2 file:mr-3 file:rounded file:border-0 file:bg-white/10 file:text-white" />
+                <button className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white">Upload as Hero</button>
+              </form>
+              {heroStatus && <p className="text-sm text-gray-300">{String(heroStatus)}</p>}
+            </div>
+            <div className="rounded-xl overflow-hidden border border-white/10 bg-white/5 aspect-video">
+              {settings?.hero_url ? (
+                <img src={settings.hero_url} alt="Hero preview" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full grid place-items-center text-gray-400 text-sm">No hero set</div>
+              )}
+            </div>
+          </div>
         </section>
       </div>
     </main>
