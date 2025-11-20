@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, Outlet, Route, Routes } from 'react-router-dom'
+import { Link, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { Camera, Mail, Menu } from 'lucide-react'
 import Home from './components/Home'
 import Portfolio from './components/Portfolio'
@@ -9,30 +9,31 @@ import Admin from './components/Admin'
 
 function Navbar() {
   const [open, setOpen] = useState(false)
+  const location = useLocation()
+  const onHome = location.pathname === '/'
+
   return (
-    <header className="sticky top-0 z-40 bg-[#0a0a0ae6] backdrop-blur border-b border-white/10">
-      <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-3 text-gray-100">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-fuchsia-500 to-indigo-600 grid place-items-center">
-            <Camera className="w-5 h-5 text-white" />
+    <header className={`${onHome ? 'absolute top-0 inset-x-0 z-50 bg-transparent' : 'sticky top-0 z-40 bg-[#0a0a0ae6] backdrop-blur border-b border-white/10'}`}>
+      <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-center relative">
+        {/* Minimal, centered brand */}
+        <Link to="/" className="absolute left-4 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-2 text-gray-100/90 hover:text-white">
+          <div className="w-8 h-8 rounded-full bg-white/10 grid place-items-center ring-1 ring-white/20">
+            <Camera className="w-4 h-4 text-white" />
           </div>
-          <div>
-            <div className="text-sm uppercase tracking-widest text-gray-400">Perspective</div>
-            <div className="-mt-1 text-lg font-semibold">by Adi</div>
-          </div>
+          <span className="text-sm tracking-widest uppercase">Perspective by Adi</span>
         </Link>
-        <nav className="hidden md:flex items-center gap-6 text-gray-200">
+        <nav className="hidden md:flex items-center gap-8 text-gray-100">
           <Link to="/portfolio" className="hover:text-white transition">Portfolio</Link>
           <Link to="/about" className="hover:text-white transition">About</Link>
           <Link to="/contact" className="hover:text-white transition">Contact</Link>
           <Link to="/admin" className="hover:text-white transition">Admin</Link>
         </nav>
-        <button className="md:hidden text-gray-200" onClick={() => setOpen(v=>!v)}>
+        <button className="md:hidden text-gray-200 absolute right-4" onClick={() => setOpen(v=>!v)}>
           <Menu />
         </button>
       </div>
       {open && (
-        <div className="md:hidden border-t border-white/10 px-4 pb-4">
+        <div className={`md:hidden border-t ${onHome ? 'border-white/20' : 'border-white/10'} px-4 pb-4 bg-[#0a0a0acc] backdrop-blur` }>
           <div className="flex flex-col gap-3 text-gray-200">
             <Link to="/portfolio" onClick={()=>setOpen(false)}>Portfolio</Link>
             <Link to="/about" onClick={()=>setOpen(false)}>About</Link>

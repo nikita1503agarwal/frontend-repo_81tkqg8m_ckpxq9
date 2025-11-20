@@ -1,67 +1,57 @@
 import { useEffect, useState } from 'react'
-import Spline from '@splinetool/react-spline'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 const API = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
 
-function Hero(){
-  return (
-    <section className="relative min-h-[70vh] grid place-items-center overflow-hidden">
-      <div className="absolute inset-0 opacity-30">
-        <Spline scene="https://prod.spline.design/xzUirwcZB9SOxUWt/scene.splinecode" />
-      </div>
-      <div className="relative z-10 max-w-4xl mx-auto px-4 text-center">
-        <h1 className="text-4xl md:text-6xl font-semibold tracking-tight">Perspective by Adi</h1>
-        <p className="mt-4 text-gray-300 max-w-2xl mx-auto">Cinematic photography with a focus on timeless stories, crafted in a modern dark aesthetic.</p>
-        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link to="/portfolio" className="px-6 py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white">Explore Portfolio</Link>
-          <Link to="/contact" className="px-6 py-3 rounded-lg bg-white/10 hover:bg-white/20">Book a Shoot</Link>
-        </div>
-      </div>
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0a0a0a]/40 to-[#0a0a0a]" />
-    </section>
-  )
-}
-
-function FeaturedGrid(){
+export default function Home(){
   const [categories, setCategories] = useState([])
+  const navigate = useNavigate()
+
   useEffect(()=>{
     fetch(`${API}/categories`).then(r=>r.json()).then(setCategories).catch(()=>{})
   },[])
-  return (
-    <section className="max-w-7xl mx-auto px-4 py-16">
-      <div className="flex items-end justify-between mb-8">
-        <h2 className="text-2xl md:text-3xl font-semibold">Featured</h2>
-        <Link to="/portfolio" className="text-indigo-400 hover:text-indigo-300">See all</Link>
-      </div>
-      <div className="grid gap-4" style={{gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))'}}>
-        {categories.map(cat => (
-          <Link key={cat.id || cat.slug} to={`/portfolio?category=${cat.slug}`} className="group relative rounded-xl overflow-hidden bg-white/5">
-            <div className="aspect-[4/3] bg-gradient-to-br from-indigo-900/40 to-fuchsia-900/30">
-              {cat.cover_url && (
-                <img src={cat.cover_url} alt={cat.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-              )}
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"/>
-            <div className="absolute bottom-0 p-4">
-              <h3 className="text-lg font-medium">{cat.name}</h3>
-              {cat.description && <p className="text-sm text-gray-300/80 line-clamp-2">{cat.description}</p>}
-            </div>
-          </Link>
-        ))}
-        {categories.length===0 && (
-          <div className="text-gray-400">No categories yet. Use Admin to seed starter data.</div>
-        )}
-      </div>
-    </section>
-  )
-}
 
-export default function Home(){
+  const getCover = (slug) => categories.find(c=>c.slug===slug)?.cover_url
+
   return (
-    <main>
-      <Hero />
-      <FeaturedGrid />
+    <main className="relative min-h-[90vh]">
+      {/* Fullscreen hero background */}
+      <div className="absolute inset-0 -z-10">
+        <img src={getCover('portraits') || getCover('events') || getCover('street') || 'https://images.unsplash.com/photo-1520872024865-3ff2805d8bb0?q=80&w=1600&auto=format&fit=crop'} alt="Hero" className="w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-black/50"/>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/50 to-black/80"/>
+      </div>
+
+      {/* Centered title + tagline */}
+      <div className="pt-28 pb-16 text-center px-4">
+        <h1 className="text-white text-4xl md:text-6xl font-extrabold tracking-tight">PERSPECTIVE by Adi</h1>
+        <p className="mt-4 max-w-3xl mx-auto text-white/80 text-base md:text-lg">
+          Berlin-based cinematic professional photographer capturing raw, candid moments and authentic stories
+        </p>
+      </div>
+
+      {/* Minimal top-centered nav already handled by global Navbar */}
+
+      {/* Category tiles over hero */}
+      <div className="max-w-5xl mx-auto px-4 pb-24">
+        <div className="grid gap-4 md:gap-6" style={{gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))'}}>
+          {['Portraits','Events','Street'].map(name => {
+            const slug = name.toLowerCase()
+            const cover = getCover(slug)
+            return (
+              <button key={slug} onClick={()=>navigate(`/portfolio?category=${slug}`)} className="group relative h-40 md:h-56 rounded-xl overflow-hidden ring-1 ring-white/15">
+                <div className="absolute inset-0">
+                  <img src={cover || 'https://images.unsplash.com/photo-1520872024865-3ff2805d8bb0?q=80&w=1200&auto=format&fit=crop'} alt={name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors" />
+                </div>
+                <div className="absolute inset-0 grid place-items-center">
+                  <span className="text-white text-xl md:text-2xl font-semibold drop-shadow">{name}</span>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </div>
     </main>
   )
 }

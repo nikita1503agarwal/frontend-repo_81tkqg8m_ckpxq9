@@ -7,7 +7,7 @@ function Lightbox({ open, onClose, image, onDelete }){
   const stop = (e)=> e.stopPropagation()
   return (
     <div className="fixed inset-0 bg-black/90 z-50 grid place-items-center p-4" onClick={onClose}>
-      <div className="max-w-5xl w-full" onClick={stop}>
+      <div className="max-w-6xl w-full" onClick={stop}>
         <div className="flex items-center justify-between mb-3">
           <div className="text-sm text-gray-300 truncate pr-4">{image?.alt || 'Untitled'}</div>
           <div className="flex gap-2">
@@ -15,7 +15,7 @@ function Lightbox({ open, onClose, image, onDelete }){
             <button onClick={onClose} className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-sm">Close</button>
           </div>
         </div>
-        <img src={image?.url} alt={image?.alt||''} className="max-h-[75vh] w-full object-contain rounded-lg" />
+        <img src={image?.url} alt={image?.alt||''} className="max-h-[78vh] w-full object-contain rounded-lg" />
       </div>
     </div>
   )
@@ -31,12 +31,12 @@ export default function Portfolio(){
   const [open, setOpen] = useState(false)
   const [current, setCurrent] = useState(null)
 
-  // Load categories to show top-level "folders" under portfolio
+  // Load categories (for landing tiles if no category chosen)
   useEffect(()=>{
     fetch(`${API}/categories`).then(r=>r.json()).then(setCategories).catch(()=>{})
   },[])
 
-  // Load folders when a category is chosen
+  // Load folders for Events (or selected category)
   useEffect(()=>{
     if(category){
       fetch(`${API}/folders?category_slug=${category}`).then(r=>r.json()).then(setFolders).catch(()=>{})
@@ -45,7 +45,7 @@ export default function Portfolio(){
     }
   },[category])
 
-  // Load images when folder chosen; if none, and category chosen, show all in category
+  // Load images for chosen folder or entire category
   useEffect(()=>{
     let url = `${API}/images`
     const qs = new URLSearchParams()
@@ -70,67 +70,82 @@ export default function Portfolio(){
     }
   }
 
+  // Grid with subtle white gutters
+  const gridStyles = { gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }
+
   return (
-    <main className="max-w-7xl mx-auto px-4 py-12">
-      <h1 className="text-3xl font-semibold mb-6">Portfolio</h1>
-
-      {/* Step 1: show categories as sub-folders */}
+    <main className="min-h-screen bg-[#0b0b0b]">
+      {/* Hero header over backdrop when landing at Portfolio without category */}
       {!category && (
-        <div className="grid gap-4 mb-10" style={{gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))'}}>
-          {categories.map(cat => (
-            <a key={cat.id || cat.slug} href={`/portfolio?category=${cat.slug}`} className="group relative rounded-xl overflow-hidden bg-white/5">
-              <div className="aspect-[4/3] bg-gradient-to-br from-indigo-900/40 to-fuchsia-900/30">
-                {cat.cover_url && (
-                  <img src={cat.cover_url} alt={cat.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                )}
-              </div>
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"/>
-              <div className="absolute bottom-0 p-4">
-                <h3 className="text-lg font-medium">{cat.name}</h3>
-                {cat.description && <p className="text-sm text-gray-300/80 line-clamp-2">{cat.description}</p>}
-              </div>
-            </a>
-          ))}
-          {categories.length===0 && (
-            <div className="text-gray-400">No categories yet. Use Admin to seed starter data.</div>
-          )}
-        </div>
+        <section className="relative h-[50vh] grid place-items-center overflow-hidden">
+          <div className="absolute inset-0">
+            <img src={categories[0]?.cover_url || 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1600&auto=format&fit=crop'} className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-black/60"/>
+          </div>
+          <div className="relative z-10 text-center px-4">
+            <h1 className="text-4xl md:text-5xl font-bold">Portfolio</h1>
+            <p className="mt-3 text-white/80 max-w-2xl">Explore portraits, events and street collections.</p>
+          </div>
+        </section>
       )}
 
-      {/* Step 2: when a category is selected, show its folders */}
-      {category && !folderId && (
-        <>
-          <div className="mb-6 text-gray-300">
-            <a href="/portfolio" className="text-indigo-400 hover:text-indigo-300">All</a>
-            <span className="mx-2">/</span>
-            <span className="text-white font-medium">{category}</span>
+      <section className="max-w-7xl mx-auto px-4 py-10">
+        {/* Step 1: show top categories if no selection */}
+        {!category && (
+          <div className="grid gap-4" style={{gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))'}}>
+            {['portraits','events','street'].map(slug => {
+              const cat = categories.find(c=>c.slug===slug)
+              return (
+                <a key={slug} href={`/portfolio?category=${slug}`} className="group relative rounded-xl overflow-hidden ring-1 ring-white/15">
+                  <div className="aspect-[4/3]">
+                    <img src={cat?.cover_url || 'https://images.unsplash.com/photo-1520872024865-3ff2805d8bb0?q=80&w=1200&auto=format&fit=crop'} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform" />
+                    <div className="absolute inset-0 bg-black/40" />
+                  </div>
+                  <div className="absolute inset-0 grid place-items-center">
+                    <span className="text-lg md:text-xl font-semibold capitalize">{slug}</span>
+                  </div>
+                </a>
+              )
+            })}
           </div>
-          <div className="flex flex-wrap gap-3 mb-8">
-            {folders.map(f => (
-              <a key={f.id} href={`/portfolio?category=${category}&folder=${f.id}`} className="px-4 py-2 rounded-full border border-white/20 text-white/90 hover:bg-white hover:text-black transition">
-                {f.name}
-              </a>
+        )}
+
+        {/* Step 2: category selected -> show folders (notably for Events nested folders) */}
+        {category && !folderId && (
+          <>
+            <div className="mb-6 text-gray-300">
+              <a href="/portfolio" className="text-indigo-400 hover:text-indigo-300">All</a>
+              <span className="mx-2">/</span>
+              <span className="text-white font-medium capitalize">{category}</span>
+            </div>
+            <div className="flex flex-wrap gap-3 mb-8">
+              {folders.map(f => (
+                <a key={f.id} href={`/portfolio?category=${category}&folder=${f.id}`} className="px-4 py-2 rounded-full border border-white/20 text-white/90 hover:bg-white hover:text-black transition">
+                  {f.name}
+                </a>
+              ))}
+              {folders.length===0 && <div className="text-gray-400">No folders yet in this category.</div>}
+            </div>
+          </>
+        )}
+
+        {/* Step 3: Mosaic grid of images for folder or entire category */}
+        {(category || folderId) && (
+          <div className="grid gap-2 md:gap-3" style={gridStyles}>
+            {images.map(img => (
+              <button key={img.id} className="group relative overflow-hidden bg-white/5 ring-1 ring-white/10" onClick={()=>{setCurrent(img);setOpen(true)}}>
+                {/* Mixed aspect ratios by reading width/height if provided, otherwise alternate */}
+                <div className="aspect-[4/3] md:aspect-[3/4]">
+                  <img src={img.url} alt={img.alt||''} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"/>
+                </div>
+              </button>
             ))}
-            {folders.length===0 && <div className="text-gray-400">No folders yet in this category.</div>}
+            {images.length===0 && (
+              <div className="text-gray-400">No images yet.</div>
+            )}
           </div>
-        </>
-      )}
-
-      {/* Step 3: show images for folder or entire category */}
-      {(category || folderId) && (
-        <div className="grid gap-4" style={{gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))'}}>
-          {images.map(img => (
-            <button key={img.id} className="group relative rounded-xl overflow-hidden bg-white/5" onClick={()=>{setCurrent(img);setOpen(true)}}>
-              <div className="aspect-[4/3]">
-                <img src={img.url} alt={img.alt||''} className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform"/>
-              </div>
-            </button>
-          ))}
-          {images.length===0 && (
-            <div className="text-gray-400">No images yet.</div>
-          )}
-        </div>
-      )}
+        )}
+      </section>
 
       <Lightbox open={open} image={current} onClose={()=>setOpen(false)} onDelete={onDelete} />
     </main>
