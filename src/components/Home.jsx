@@ -7,6 +7,8 @@ export default function Home(){
   const [categories, setCategories] = useState([])
   const [settings, setSettings] = useState({})
   const [thumbs, setThumbs] = useState({})
+  const [heroVersion, setHeroVersion] = useState(0)
+  const [heroFailed, setHeroFailed] = useState(false)
   const navigate = useNavigate()
 
   // Fetch helpers
@@ -15,6 +17,8 @@ export default function Home(){
       const res = await fetch(`${API}/settings`)
       const data = await res.json()
       setSettings(data || {})
+      setHeroFailed(false)
+      setHeroVersion(Date.now()) // cache-bust hero image when settings change
     } catch {}
   }
 
@@ -25,12 +29,12 @@ export default function Home(){
 
   // Live-refresh hero when Admin updates it within the SPA
   useEffect(()=>{
-    const onHeroUpdated = () => { fetchSettings() }
-    const onVisibility = () => { if(document.visibilityState === 'visible') fetchSettings() }
+    const onHeroUpdated = () => { setHeroVersion(Date.now()); fetchSettings() }
+    const onVisibility = () => { if(document.visibilityState === 'visible'){ setHeroVersion(Date.now()); fetchSettings() } }
     try { window.addEventListener('pb.hero.updated', onHeroUpdated) } catch {}
     window.addEventListener('visibilitychange', onVisibility)
     // best-effort: also react to localStorage changes from other tabs
-    const onStorage = (e) => { if(e.key === 'pb_hero_updated') fetchSettings() }
+    const onStorage = (e) => { if(e.key === 'pb_hero_updated'){ setHeroVersion(Date.now()); fetchSettings() } }
     window.addEventListener('storage', onStorage)
     return () => {
       try { window.removeEventListener('pb.hero.updated', onHeroUpdated) } catch {}
@@ -61,11 +65,21 @@ export default function Home(){
     return settings?.hero_url || getCover('portraits') || getCover('events') || getCover('street') || 'https://images.unsplash.com/photo-1520872024865-3ff2805d8bb0?q=80&w=1600&auto=format&fit=crop'
   },[settings, categories])
 
+  const heroSrc = useMemo(()=>{
+    if(!heroUrl) return ''
+    const sep = heroUrl.includes('?') ? '&' : '?'
+    return `${heroUrl}${sep}v=${heroVersion}`
+  },[heroUrl, heroVersion])
+
   return (
     <main className="relative min-h-[90vh]">
       {/* Fullscreen hero background with custom setting fallback */}
       <div className="absolute inset-0 -z-10">
-        <img src={heroUrl} alt="Hero" className="w-full h-full object-cover" />
+        {!heroFailed ? (
+          <img src={heroSrc} alt="Hero" className="w-full h-full object-cover" onError={()=>setHeroFailed(true)} />
+        ) : (
+          <div className="w-full h-full bg-[url('https://images.unsplash.com/photo-1629380321590-3b3f75d66dec?ixid=M3w3OTkxMTl8MHwxfHNlYXJjaHwxfHxjZXJhbWljJTIwcG90dGVyeSUyMGhhbmRtYWRlfGVufDB8MHx8fDE3NjM2MjQzMTR8MA&ixlib=rb-4.1.0&w=1600&auto=format&fit=crop&q=80')] bg-cover bg-center" />
+        )}
         <div className="absolute inset-0 bg-black/40"/>
         <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/40 to-black/80"/>
       </div>

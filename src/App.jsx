@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Link, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { Camera, Mail, Menu } from 'lucide-react'
 import Home from './components/Home'
-import Portfolio from './components/Portfolio'
 import About from './components/About'
 import Contact from './components/Contact'
 import Admin from './components/Admin'
@@ -23,7 +22,6 @@ function Navbar() {
           <span className="text-sm tracking-widest uppercase">Perspective by Adi</span>
         </Link>
         <nav className="hidden md:flex items-center gap-8 text-gray-100">
-          <Link to="/portfolio" className="hover:text-white transition">Portfolio</Link>
           <Link to="/about" className="hover:text-white transition">About</Link>
           <Link to="/contact" className="hover:text-white transition">Contact</Link>
           <Link to="/admin" className="hover:text-white transition">Admin</Link>
@@ -35,7 +33,6 @@ function Navbar() {
       {open && (
         <div className={`md:hidden border-t ${onHome ? 'border-white/20' : 'border-white/10'} px-4 pb-4 bg-[#0a0a0acc] backdrop-blur` }>
           <div className="flex flex-col gap-3 text-gray-200">
-            <Link to="/portfolio" onClick={()=>setOpen(false)}>Portfolio</Link>
             <Link to="/about" onClick={()=>setOpen(false)}>About</Link>
             <Link to="/contact" onClick={()=>setOpen(false)}>Contact</Link>
             <Link to="/admin" onClick={()=>setOpen(false)}>Admin</Link>
@@ -76,7 +73,6 @@ export default function App(){
     <Routes>
       <Route element={<AppLayout />}> 
         <Route index element={<Home />} />
-        <Route path="portfolio" element={<Portfolio />} />
         <Route path="about" element={<About />} />
         <Route path="contact" element={<Contact />} />
         <Route path="admin" element={<Admin />} />
