@@ -44,10 +44,10 @@ export default function Contact(){
         {status==='sent' && <p className="text-green-400">Thanks! I'll get back to you soon.</p>}
         {status && status!=='sent' && status!=='sending' && <p className="text-red-400">{String(status)}</p>}
       </form>
-      <div className="mt-8 flex gap-6 text-gray-300">
-        <a href="mailto:hello@perspectivebyadi.de" className="hover:text-white">Email</a>
-        <a href="https://wa.me/0000000000" className="hover:text-white" target="_blank" rel="noreferrer">WhatsApp</a>
-        <a href="https://instagram.com/" className="hover:text-white" target="_blank" rel="noreferrer">Instagram</a>
+      <div className="mt-8 flex flex-wrap gap-6 text-gray-300">
+        <a href="mailto:perspectivebyadi@gmail.com" className="hover:text-white">Email</a>
+        <a href="https://wa.me/919768312541" className="hover:text-white" target="_blank" rel="noreferrer">WhatsApp</a>
+        <a href="https://instagram.com/perspective_by_adi" className="hover:text-white" target="_blank" rel="noreferrer">Instagram</a>
       </div>
     </main>
   )

@@ -24,16 +24,26 @@ export default function Admin(){
   const [folders, setFolders] = useState([])
   const [catForFolders, setCatForFolders] = useState('')
 
-  // Settings (hero background)
+  // Site settings
   const [settings, setSettings] = useState({})
   const [heroFile, setHeroFile] = useState(null)
   const [heroUrlInput, setHeroUrlInput] = useState('')
   const [heroStatus, setHeroStatus] = useState(null)
 
+  // Library
+  const [recentImages, setRecentImages] = useState([])
+  const [libraryStatus, setLibraryStatus] = useState('')
+
   useEffect(()=>{
     fetch(`${API}/categories`).then(r=>r.json()).then(setCategories).catch(()=>{})
     fetch(`${API}/settings`).then(r=>r.json()).then((s)=>{ setSettings(s||{}); setHeroUrlInput(s?.hero_url||'') }).catch(()=>{})
+    refreshLibrary()
   },[])
+
+  const refreshLibrary = () => {
+    setLibraryStatus('loading')
+    fetch(`${API}/images?limit=30`).then(r=>r.json()).then(d=>{ setRecentImages(Array.isArray(d)? d : []); setLibraryStatus('') }).catch(()=>{ setRecentImages([]); setLibraryStatus('') })
+  }
 
   useEffect(()=>{
     if(catForFolders){
@@ -78,7 +88,7 @@ export default function Admin(){
       const res = await fetch(`${API}/images`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })
       const data = await res.json()
       setCreateStatus(res.ok ? 'created' : data.detail || 'error')
-      if(res.ok){ setImage({url:'', alt:'', category_slug:'', folder_id:''}) }
+      if(res.ok){ setImage({url:'', alt:'', category_slug:'', folder_id:''}); refreshLibrary() }
     } catch(err){
       setCreateStatus('error')
     }
@@ -112,6 +122,7 @@ export default function Admin(){
       setUploadedPreview(upData.url)
       setFile(null)
       setUploadMeta({ alt:'', category_slug: uploadMeta.category_slug, folder_id: uploadMeta.folder_id || '' })
+      refreshLibrary()
     } catch(err){
       setUploadStatus('error')
     }
@@ -151,8 +162,21 @@ export default function Admin(){
     }
   }
 
+  const setHeroFromExisting = async (url) => {
+    try{
+      setHeroStatus('saving')
+      const res = await fetch(`${API}/settings`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ hero_url: url }) })
+      const data = await res.json()
+      setSettings(data || {})
+      setHeroUrlInput(data?.hero_url || '')
+      setHeroStatus('saved')
+    } catch(err){
+      setHeroStatus('error')
+    }
+  }
+
   return (
-    <main className="max-w-5xl mx-auto px-4 py-12">
+    <main className="max-w-6xl mx-auto px-4 py-12">
       <h1 className="text-3xl font-semibold mb-6">Admin</h1>
 
       <div className="grid md:grid-cols-2 gap-6">
@@ -205,7 +229,7 @@ export default function Admin(){
         <section className="bg-white/5 border border-white/10 rounded-xl p-6 md:col-span-2">
           <h2 className="text-xl font-medium mb-4">Upload Image from Computer</h2>
           <form onSubmit={uploadAndCreate} className="grid md:grid-cols-2 gap-3">
-            <input type="file" accept="image/*" onChange={e=>setFile(e.target.files?.[0]||null)} className="w-full bg-transparent border border-white/10 rounded-lg px-4 py-2 file:mr-3 file:rounded file:border-0 file:bg-white/10 file:text-white" />
+            <input type="file" accept="image/*" onChange={e=>setFile(e.target.files?.[0]||null)} className="w-full bg-transparent border border-white/10 rounded-lg px-4 py-2 file:mr-3 file:rounded file:border-0 file:bg:white/10 file:bg-white/10 file:text-white" />
             <input placeholder="Alt (optional)" className="bg-transparent border border-white/10 rounded-lg px-4 py-2" value={uploadMeta.alt} onChange={e=>setUploadMeta({...uploadMeta,alt:e.target.value})} />
             <select required className="bg-transparent border border-white/10 rounded-lg px-4 py-2" value={uploadMeta.category_slug} onChange={e=>setUploadMeta({...uploadMeta,category_slug:e.target.value})}>
               <option value="">Select category</option>
@@ -235,8 +259,13 @@ export default function Admin(){
             </div>
             {uploadedPreview && (
               <div className="md:col-span-2">
-                <div className="aspect-[4/3] overflow-hidden rounded-xl bg-white/5">
+                <div className="aspect-[4/3] overflow-hidden rounded-xl bg-white/5 relative">
                   <img src={uploadedPreview} alt="Uploaded preview" className="w-full h-full object-cover" />
+                  <div className="absolute bottom-3 right-3">
+                    <button type="button" onClick={()=>setHeroFromExisting(uploadedPreview)} className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow">
+                      Set as Hero Background
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -266,6 +295,34 @@ export default function Admin(){
               )}
             </div>
           </div>
+        </section>
+
+        {/* Library with Set as Hero buttons */}
+        <section className="bg-white/5 border border-white/10 rounded-xl p-6 md:col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-medium">Library</h2>
+            <button onClick={refreshLibrary} className="text-sm px-3 py-1.5 rounded-md border border-white/20 hover:bg-white/10">Refresh</button>
+          </div>
+          {libraryStatus==='loading' && <p className="text-sm text-gray-300">Loading images...</p>}
+          {recentImages.length===0 && libraryStatus!=="loading" && (
+            <p className="text-sm text-gray-300">No images yet. Upload above to get started.</p>
+          )}
+          {recentImages.length>0 && (
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {recentImages.map(img => (
+                <div key={img.id || img._id || img.url} className="relative group rounded-lg overflow-hidden border border-white/10 bg-white/5">
+                  <div className="aspect-square overflow-hidden">
+                    <img src={img.url} alt={img.alt || 'Image'} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  </div>
+                  <div className="p-2 flex items-center justify-between gap-2">
+                    <button type="button" onClick={()=>setHeroFromExisting(img.url)} className="w-full text-xs px-2 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white">
+                      Set as Hero Background
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </main>
