@@ -128,6 +128,15 @@ export default function Admin(){
     }
   }
 
+  const afterHeroSaved = (data) => {
+    setSettings(data || {})
+    setHeroUrlInput(data?.hero_url || '')
+    // Notify same-tab components immediately
+    try { window.dispatchEvent(new Event('pb.hero.updated')) } catch {}
+    // Notify other tabs/components to refresh hero
+    try { localStorage.setItem('pb_hero_updated', String(Date.now())) } catch {}
+  }
+
   const setHeroFromFile = async (e) => {
     e.preventDefault()
     if(!heroFile){ setHeroStatus('Choose a file'); return }
@@ -140,8 +149,8 @@ export default function Admin(){
       if(!upRes.ok){ setHeroStatus(upData.detail || 'Upload failed'); return }
       const res = await fetch(`${API}/settings`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ hero_url: upData.url }) })
       const data = await res.json()
-      setSettings(data || {})
-      setHeroUrlInput(data?.hero_url || '')
+      if(!res.ok){ setHeroStatus(data.detail || 'Save failed'); return }
+      afterHeroSaved(data)
       setHeroStatus('saved')
     } catch(err){
       setHeroStatus('error')
@@ -155,7 +164,8 @@ export default function Admin(){
     try{
       const res = await fetch(`${API}/settings`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ hero_url: heroUrlInput }) })
       const data = await res.json()
-      setSettings(data || {})
+      if(!res.ok){ setHeroStatus(data.detail || 'Save failed'); return }
+      afterHeroSaved(data)
       setHeroStatus('saved')
     } catch(err){
       setHeroStatus('error')
@@ -167,8 +177,8 @@ export default function Admin(){
       setHeroStatus('saving')
       const res = await fetch(`${API}/settings`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ hero_url: url }) })
       const data = await res.json()
-      setSettings(data || {})
-      setHeroUrlInput(data?.hero_url || '')
+      if(!res.ok){ setHeroStatus(data.detail || 'Save failed'); return }
+      afterHeroSaved(data)
       setHeroStatus('saved')
     } catch(err){
       setHeroStatus('error')

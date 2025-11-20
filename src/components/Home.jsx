@@ -9,9 +9,34 @@ export default function Home(){
   const [thumbs, setThumbs] = useState({})
   const navigate = useNavigate()
 
+  // Fetch helpers
+  const fetchSettings = async () => {
+    try{
+      const res = await fetch(`${API}/settings`)
+      const data = await res.json()
+      setSettings(data || {})
+    } catch {}
+  }
+
   useEffect(()=>{
     fetch(`${API}/categories`).then(r=>r.json()).then(setCategories).catch(()=>{})
-    fetch(`${API}/settings`).then(r=>r.json()).then(setSettings).catch(()=>{})
+    fetchSettings()
+  },[])
+
+  // Live-refresh hero when Admin updates it within the SPA
+  useEffect(()=>{
+    const onHeroUpdated = () => { fetchSettings() }
+    const onVisibility = () => { if(document.visibilityState === 'visible') fetchSettings() }
+    try { window.addEventListener('pb.hero.updated', onHeroUpdated) } catch {}
+    window.addEventListener('visibilitychange', onVisibility)
+    // best-effort: also react to localStorage changes from other tabs
+    const onStorage = (e) => { if(e.key === 'pb_hero_updated') fetchSettings() }
+    window.addEventListener('storage', onStorage)
+    return () => {
+      try { window.removeEventListener('pb.hero.updated', onHeroUpdated) } catch {}
+      window.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('storage', onStorage)
+    }
   },[])
 
   // Fetch first image per category for cards
