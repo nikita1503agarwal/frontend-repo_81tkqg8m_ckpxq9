@@ -1,12 +1,40 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 const API = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
 
 export default function Admin(){
   const [ownerKey, setOwnerKey] = useState('')
   const [seedResult, setSeedResult] = useState(null)
+
+  // Create Folder
+  const [folder, setFolder] = useState({ name:'', slug:'', category_slug:'', parent_id:'', description:'' })
+  const [folderStatus, setFolderStatus] = useState(null)
+
+  // Add Image by URL
   const [image, setImage] = useState({url:'', alt:'', category_slug:'', folder_id:''})
   const [createStatus, setCreateStatus] = useState(null)
+
+  // Upload from local machine
+  const [file, setFile] = useState(null)
+  const [uploadMeta, setUploadMeta] = useState({ alt:'', category_slug:'', folder_id:'' })
+  const [uploadStatus, setUploadStatus] = useState(null)
+  const [uploadedPreview, setUploadedPreview] = useState(null)
+
+  const [categories, setCategories] = useState([])
+  const [folders, setFolders] = useState([])
+  const [catForFolders, setCatForFolders] = useState('')
+
+  useEffect(()=>{
+    fetch(`${API}/categories`).then(r=>r.json()).then(setCategories).catch(()=>{})
+  },[])
+
+  useEffect(()=>{
+    if(catForFolders){
+      fetch(`${API}/folders?category_slug=${catForFolders}`).then(r=>r.json()).then(setFolders).catch(()=>{})
+    } else {
+      setFolders([])
+    }
+  },[catForFolders])
 
   const seed = async () => {
     const fd = new FormData()
@@ -16,11 +44,31 @@ export default function Admin(){
     setSeedResult(data)
   }
 
+  const createFolder = async (e) => {
+    e.preventDefault()
+    setFolderStatus('creating')
+    try{
+      const payload = { ...folder, parent_id: folder.parent_id || null, description: folder.description || null }
+      const res = await fetch(`${API}/folders`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+      const data = await res.json()
+      setFolderStatus(res.ok ? 'created' : data.detail || 'error')
+      if(res.ok){
+        setFolder({ name:'', slug:'', category_slug:'', parent_id:'', description:'' })
+        if(catForFolders){
+          fetch(`${API}/folders?category_slug=${catForFolders}`).then(r=>r.json()).then(setFolders).catch(()=>{})
+        }
+      }
+    } catch(err){
+      setFolderStatus('error')
+    }
+  }
+
   const addImage = async (e) => {
     e.preventDefault()
     setCreateStatus('creating')
     try{
-      const res = await fetch(`${API}/images`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(image) })
+      const body = { ...image, folder_id: image.folder_id || null, alt: image.alt || null }
+      const res = await fetch(`${API}/images`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })
       const data = await res.json()
       setCreateStatus(res.ok ? 'created' : data.detail || 'error')
       if(res.ok){ setImage({url:'', alt:'', category_slug:'', folder_id:''}) }
@@ -29,11 +77,44 @@ export default function Admin(){
     }
   }
 
+  const uploadAndCreate = async (e) => {
+    e.preventDefault()
+    if(!file){ setUploadStatus('Please choose an image file'); return }
+    if(!uploadMeta.category_slug){ setUploadStatus('Please select a category'); return }
+    setUploadStatus('uploading')
+    setUploadedPreview(null)
+    try{
+      // 1) Upload file
+      const fd = new FormData()
+      fd.append('file', file)
+      const upRes = await fetch(`${API}/upload`, { method:'POST', body: fd })
+      const upData = await upRes.json()
+      if(!upRes.ok){ setUploadStatus(upData.detail || 'Upload failed'); return }
+
+      // 2) Create image document
+      const payload = {
+        url: upData.url,
+        alt: uploadMeta.alt || null,
+        category_slug: uploadMeta.category_slug,
+        folder_id: uploadMeta.folder_id || null
+      }
+      const res = await fetch(`${API}/images`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+      const data = await res.json()
+      if(!res.ok){ setUploadStatus(data.detail || 'Failed to save image'); return }
+      setUploadStatus('uploaded')
+      setUploadedPreview(upData.url)
+      setFile(null)
+      setUploadMeta({ alt:'', category_slug: uploadMeta.category_slug, folder_id: uploadMeta.folder_id || '' })
+    } catch(err){
+      setUploadStatus('error')
+    }
+  }
+
   return (
-    <main className="max-w-3xl mx-auto px-4 py-12">
+    <main className="max-w-5xl mx-auto px-4 py-12">
       <h1 className="text-3xl font-semibold mb-6">Admin</h1>
 
-      <div className="space-y-6">
+      <div className="grid md:grid-cols-2 gap-6">
         <section className="bg-white/5 border border-white/10 rounded-xl p-6">
           <h2 className="text-xl font-medium mb-4">Seed Base Categories</h2>
           <div className="flex gap-3">
@@ -44,14 +125,80 @@ export default function Admin(){
         </section>
 
         <section className="bg-white/5 border border-white/10 rounded-xl p-6">
+          <h2 className="text-xl font-medium mb-4">Create Folder</h2>
+          <form onSubmit={createFolder} className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <input required placeholder="Name" className="bg-transparent border border-white/10 rounded-lg px-4 py-2" value={folder.name} onChange={e=>setFolder({...folder,name:e.target.value})} />
+              <input required placeholder="Slug (unique)" className="bg-transparent border border-white/10 rounded-lg px-4 py-2" value={folder.slug} onChange={e=>setFolder({...folder,slug:e.target.value})} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <select required className="bg-transparent border border-white/10 rounded-lg px-4 py-2" value={folder.category_slug} onChange={e=>setFolder({...folder,category_slug:e.target.value})}>
+                <option value="">Select category</option>
+                {categories.map(c => (<option key={c.id || c.slug} value={c.slug} className="bg-[#0a0a0a]">{c.name}</option>))}
+              </select>
+              <input placeholder="Parent folder ID (optional)" className="bg-transparent border border-white/10 rounded-lg px-4 py-2" value={folder.parent_id} onChange={e=>setFolder({...folder,parent_id:e.target.value})} />
+            </div>
+            <textarea placeholder="Description (optional)" className="w-full bg-transparent border border-white/10 rounded-lg px-4 py-2" rows={2} value={folder.description} onChange={e=>setFolder({...folder,description:e.target.value})} />
+            <button disabled={folderStatus==='creating'} className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white">{folderStatus==='creating'?'Creating...':'Create Folder'}</button>
+            {folderStatus && folderStatus!=='creating' && <p className="text-sm text-gray-300">{String(folderStatus)}</p>}
+          </form>
+        </section>
+
+        <section className="bg-white/5 border border-white/10 rounded-xl p-6 md:col-span-2">
           <h2 className="text-xl font-medium mb-4">Add Image by URL</h2>
-          <form onSubmit={addImage} className="space-y-3">
+          <form onSubmit={addImage} className="grid md:grid-cols-2 gap-3">
             <input required placeholder="Image URL" className="w-full bg-transparent border border-white/10 rounded-lg px-4 py-2" value={image.url} onChange={e=>setImage({...image,url:e.target.value})} />
             <input placeholder="Alt" className="w-full bg-transparent border border-white/10 rounded-lg px-4 py-2" value={image.alt} onChange={e=>setImage({...image,alt:e.target.value})} />
-            <input required placeholder="Category slug (e.g., weddings)" className="w-full bg-transparent border border-white/10 rounded-lg px-4 py-2" value={image.category_slug} onChange={e=>setImage({...image,category_slug:e.target.value})} />
+            <select required className="bg-transparent border border-white/10 rounded-lg px-4 py-2" value={image.category_slug} onChange={e=>setImage({...image,category_slug:e.target.value})}>
+              <option value="">Select category</option>
+              {categories.map(c => (<option key={c.id || c.slug} value={c.slug} className="bg-[#0a0a0a]">{c.name}</option>))}
+            </select>
             <input placeholder="Folder ID (optional)" className="w-full bg-transparent border border-white/10 rounded-lg px-4 py-2" value={image.folder_id} onChange={e=>setImage({...image,folder_id:e.target.value})} />
-            <button disabled={createStatus==='creating'} className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white">{createStatus==='creating'?'Creating...':'Create'}</button>
-            {createStatus && createStatus!=='creating' && <p className="text-sm text-gray-300">{String(createStatus)}</p>}
+            <div className="md:col-span-2 flex items-center gap-3">
+              <button disabled={createStatus==='creating'} className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white">{createStatus==='creating'?'Creating...':'Create'}</button>
+              {createStatus && createStatus!=='creating' && <p className="text-sm text-gray-300">{String(createStatus)}</p>}
+            </div>
+          </form>
+        </section>
+
+        <section className="bg-white/5 border border-white/10 rounded-xl p-6 md:col-span-2">
+          <h2 className="text-xl font-medium mb-4">Upload Image from Computer</h2>
+          <form onSubmit={uploadAndCreate} className="grid md:grid-cols-2 gap-3">
+            <input type="file" accept="image/*" onChange={e=>setFile(e.target.files?.[0]||null)} className="w-full bg-transparent border border-white/10 rounded-lg px-4 py-2 file:mr-3 file:rounded file:border-0 file:bg-white/10 file:text-white" />
+            <input placeholder="Alt (optional)" className="bg-transparent border border-white/10 rounded-lg px-4 py-2" value={uploadMeta.alt} onChange={e=>setUploadMeta({...uploadMeta,alt:e.target.value})} />
+            <select required className="bg-transparent border border-white/10 rounded-lg px-4 py-2" value={uploadMeta.category_slug} onChange={e=>setUploadMeta({...uploadMeta,category_slug:e.target.value})}>
+              <option value="">Select category</option>
+              {categories.map(c => (<option key={c.id || c.slug} value={c.slug} className="bg-[#0a0a0a]">{c.name}</option>))}
+            </select>
+            <div className="grid grid-cols-2 gap-3">
+              <input placeholder="Folder ID (optional)" className="bg-transparent border border-white/10 rounded-lg px-4 py-2" value={uploadMeta.folder_id} onChange={e=>setUploadMeta({...uploadMeta,folder_id:e.target.value})} />
+              <div className="flex items-center gap-2">
+                <select className="flex-1 bg-transparent border border-white/10 rounded-lg px-2 py-2" value={catForFolders} onChange={e=>setCatForFolders(e.target.value)}>
+                  <option value="">Browse folders by category</option>
+                  {categories.map(c => (<option key={c.id || c.slug} value={c.slug} className="bg-[#0a0a0a]">{c.name}</option>))}
+                </select>
+              </div>
+            </div>
+            {folders.length>0 && (
+              <div className="md:col-span-2 flex flex-wrap gap-2">
+                {folders.map(f => (
+                  <button type="button" key={f.id} onClick={()=>setUploadMeta({...uploadMeta, folder_id: f.id})} className={`px-3 py-1 rounded-full border text-sm ${uploadMeta.folder_id===f.id? 'bg-white text-black' : 'border-white/20 text-white/80'}`}>
+                    {f.name}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="md:col-span-2 flex items-center gap-3">
+              <button disabled={uploadStatus==='uploading'} className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white">{uploadStatus==='uploading'?'Uploading...':'Upload & Save'}</button>
+              {uploadStatus && uploadStatus!=='uploading' && <p className="text-sm text-gray-300">{String(uploadStatus)}</p>}
+            </div>
+            {uploadedPreview && (
+              <div className="md:col-span-2">
+                <div className="aspect-[4/3] overflow-hidden rounded-xl bg-white/5">
+                  <img src={uploadedPreview} alt="Uploaded preview" className="w-full h-full object-cover" />
+                </div>
+              </div>
+            )}
           </form>
         </section>
       </div>
